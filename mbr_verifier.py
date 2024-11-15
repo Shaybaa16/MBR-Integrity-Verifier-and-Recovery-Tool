@@ -1,17 +1,20 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import hashlib
-import os
-import subprocess
 
 # Hardcoded hash value of the known good MBR
-KNOWN_GOOD_HASH = "good_mbr_hash"
+KNOWN_GOOD_MBR = bytes.fromhex(
+    "33C08ED0BC007C8EC08ED8BE007CBF0006B90002FCF3A450681C06CBFBB90400BDBE07807E00007C0B0F850E0183C510E2F1CD1888560055C6461105C6461000B441BBAA55CD135D720F81FB55AA7509F7C101007403FE46106660807E1000742666680000000066FF760868000068007C680100681000B4428A56008BF4CD139F83C4109EEB14B80102BB007C8A56008A76018A4E028A6E03CD136661731CFE4E11750C807E00800F848A00B280EB845532E48A5600CD135DEB9E813EFE7D55AA756EFF7600E88D007517FAB0D1E664E88300B0DFE660E87C00B0FFE664E87500FBB800BBCD1A6623C0753B6681FB54435041753281F90201722C666807BB00006668000200006668080000006653665366556668000000006668007C0000666168000007CD1A5A32F6EA007C0000CD18A0B707EB08A0B607EB03A0B50732E40500078BF0AC3C007409BB0700B40ECD10EBF2F4EBFD2BC9E464EB002402E0F82402C3496E76616C696420706172746974696F6E207461626C65004572726F72206C6F6164696E67206F7065726174696E672073797374656D004D697373696E67206F7065726174696E672073797374656D000000637B9A"
+)
+KNOWN_GOOD_HASH=hashlib.sha256(KNOWN_GOOD_MBR).hexdigest()
+print(KNOWN_GOOD_HASH)
+print(KNOWN_GOOD_MBR)
 
 # Function to read MBR from a live system
 def read_mbr_live():
     try:
-        with open("/dev/nvme0n1", "rb") as f:
-            mbr = f.read(512)
+        with open(r"\\.\PhysicalDrive1", "rb") as f:
+            mbr = f.read(440)
         return mbr
     except Exception as e:
         messagebox.showerror("Error", f"Failed to read MBR: {e}")
@@ -21,7 +24,7 @@ def read_mbr_live():
 def read_mbr_image(file_path):
     try:
         with open(file_path, "rb") as f:
-            mbr = f.read(512)
+            mbr = f.read(440)
         return mbr
     except Exception as e:
         messagebox.showerror("Error", f"Failed to read MBR: {e}")
@@ -39,11 +42,8 @@ def verify_integrity(mbr):
 # Function to recover the MBR
 def recover_mbr():
     try:
-        # Replace with the path to your known good MBR code
-        with open("known_good_mbr.bin", "rb") as f:
-            good_mbr = f.read(512)
-        with open("/dev/nvme0n1", "wb") as f:
-            f.write(good_mbr)
+        with open(r"\\.\PhysicalDrive1", "wb") as f:
+            f.write(KNOWN_GOOD_MBR)
         messagebox.showinfo("Success", "MBR recovered successfully.")
     except Exception as e:
         messagebox.showerror("Error", f"Failed to recover MBR: {e}")
