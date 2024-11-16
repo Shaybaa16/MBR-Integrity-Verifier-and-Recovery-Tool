@@ -19,7 +19,7 @@ class MBRVerifier(tk.Tk):
     
     def setup_gui(self):
         self.title("MBR Integrity Verifier and Recovery Tool")
-        self.geometry("800x600")
+        self.geometry("600x720")
         
         # Create main frame
         main_frame = ttk.Frame(self, padding="10")
@@ -53,12 +53,12 @@ class MBRVerifier(tk.Tk):
                   command=self.recover_mbr).grid(row=4, column=1, pady=20)
         
         # Results display
-        self.result_text = tk.Text(main_frame, height=10, width=60)
+        self.result_text = tk.Text(main_frame, height=6, width=65)
         self.result_text.grid(row=5, column=0, columnspan=3, pady=10)
         
         # Hex viewer
         ttk.Label(main_frame, text="MBR Hex Viewer:").grid(row=6, column=0, pady=5)
-        self.hex_viewer = tk.Text(main_frame, height=20, width=80)
+        self.hex_viewer = tk.Text(main_frame, height=20, width=65)
         self.hex_viewer.grid(row=7, column=0, columnspan=3, pady=10)
     
     def get_physical_drives(self):
@@ -119,7 +119,7 @@ class MBRVerifier(tk.Tk):
     def display_hex(self, data):
         hex_str = ""
         # Add header row
-        hex_str += "Address  " + " ".join(f"{i:02X}" for i in range(16)) + "\n"
+        hex_str += "Address   " + " ".join(f"{i:02X}" for i in range(16)) + "\n"
         # Add data rows
         for i in range(0, len(data), 16):
             row_data = data[i:i+16]
@@ -135,8 +135,8 @@ class MBRVerifier(tk.Tk):
         if mbr_data:
             current_hash = self.calculate_hash(mbr_data)
             self.result_text.delete(1.0, tk.END)
-            self.result_text.insert(tk.END, f"Current MBR Hash: {current_hash}\n")
-            self.result_text.insert(tk.END, f"Original MBR Hash: {self.ORIGINAL_MBR_HASH}\n")
+            self.result_text.insert(tk.END, f"Current MBR Hash:\n{current_hash}\n")
+            self.result_text.insert(tk.END, f"Original MBR Hash:\n{self.ORIGINAL_MBR_HASH}\n")
             
             if current_hash == self.ORIGINAL_MBR_HASH:
                 self.result_text.insert(tk.END, "Status: MBR is intact ✓")
