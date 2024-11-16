@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox, filedialog
 import hashlib
 import win32file
 import win32con
+import win32api
 import os
 import struct
 
@@ -35,7 +36,7 @@ class MBRVerifier(tk.Tk):
         # Drive selection
         ttk.Label(main_frame, text="Select Drive:").grid(row=2, column=0, pady=5)
         self.drive_var = tk.StringVar(value="0")
-        drive_options = [f"PhysicalDrive{i}" for i in range(10)]  # Assuming up to 10 drives
+        drive_options = self.get_physical_drives()
         self.drive_menu = ttk.Combobox(main_frame, textvariable=self.drive_var, values=drive_options)
         self.drive_menu.grid(row=2, column=1)
         
@@ -54,6 +55,25 @@ class MBRVerifier(tk.Tk):
         # Results display
         self.result_text = tk.Text(main_frame, height=10, width=60)
         self.result_text.grid(row=5, column=0, columnspan=3, pady=10)
+
+    def get_physical_drives(self):
+        drives = []
+        for i in range(10):  # Assuming up to 10 drives
+            try:
+                handle = win32file.CreateFile(
+                    f"\\\\.\\PhysicalDrive{i}",
+                    win32con.GENERIC_READ,
+                    win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE,
+                    None,
+                    win32con.OPEN_EXISTING,
+                    0,
+                    None
+                )
+                win32file.CloseHandle(handle)
+                drives.append(f"PhysicalDrive{i}")
+            except Exception:
+                pass
+        return drives
 
     def browse_image(self):
         filename = filedialog.askopenfilename(
