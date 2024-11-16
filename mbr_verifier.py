@@ -32,21 +32,28 @@ class MBRVerifier(tk.Tk):
         ttk.Radiobutton(main_frame, text="Forensic Image", variable=self.source_var, 
                        value="image").grid(row=1, column=1)
         
+        # Drive selection
+        ttk.Label(main_frame, text="Select Drive:").grid(row=2, column=0, pady=5)
+        self.drive_var = tk.StringVar(value="0")
+        drive_options = [f"PhysicalDrive{i}" for i in range(10)]  # Assuming up to 10 drives
+        self.drive_menu = ttk.Combobox(main_frame, textvariable=self.drive_var, values=drive_options)
+        self.drive_menu.grid(row=2, column=1)
+        
         # Image path selection
         self.image_path = tk.StringVar()
-        ttk.Label(main_frame, text="Image Path:").grid(row=2, column=0, pady=5)
-        ttk.Entry(main_frame, textvariable=self.image_path, width=50).grid(row=2, column=1)
-        ttk.Button(main_frame, text="Browse", command=self.browse_image).grid(row=2, column=2)
+        ttk.Label(main_frame, text="Image Path:").grid(row=3, column=0, pady=5)
+        ttk.Entry(main_frame, textvariable=self.image_path, width=50).grid(row=3, column=1)
+        ttk.Button(main_frame, text="Browse", command=self.browse_image).grid(row=3, column=2)
         
         # Action buttons
         ttk.Button(main_frame, text="Verify MBR Integrity", 
-                  command=self.verify_mbr).grid(row=3, column=0, pady=20)
+                  command=self.verify_mbr).grid(row=4, column=0, pady=20)
         ttk.Button(main_frame, text="Recover MBR", 
-                  command=self.recover_mbr).grid(row=3, column=1, pady=20)
+                  command=self.recover_mbr).grid(row=4, column=1, pady=20)
         
         # Results display
         self.result_text = tk.Text(main_frame, height=10, width=60)
-        self.result_text.grid(row=4, column=0, columnspan=3, pady=10)
+        self.result_text.grid(row=5, column=0, columnspan=3, pady=10)
 
     def browse_image(self):
         filename = filedialog.askopenfilename(
@@ -59,7 +66,7 @@ class MBRVerifier(tk.Tk):
         if self.source_var.get() == "live":
             try:
                 drive_handle = win32file.CreateFile(
-                    "\\\\.\\PhysicalDrive1",
+                    f"\\\\.\\{self.drive_var.get()}",
                     win32con.GENERIC_READ,
                     win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE,
                     None,
@@ -107,7 +114,7 @@ class MBRVerifier(tk.Tk):
                     return
                     
                 drive_handle = win32file.CreateFile(
-                    "\\\\.\\PhysicalDrive1",
+                    f"\\\\.\\{self.drive_var.get()}",
                     win32con.GENERIC_WRITE,
                     win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE,
                     None,
@@ -117,7 +124,7 @@ class MBRVerifier(tk.Tk):
                 )
                 
                 # Write MBR data
-                win32file.WriteFile(drive_handle, self.BACKUP_MBR)
+                win32file.WriteFile(drive_handle, self.BACKUP_MBR[:440])
                 win32file.CloseHandle(drive_handle)
                 
                 messagebox.showinfo("Success", "MBR has been recovered successfully")
@@ -146,7 +153,7 @@ class MBRVerifier(tk.Tk):
                 # Write MBR to image
                 with open(image_path, 'r+b') as f:
                     f.seek(0)
-                    f.write(self.BACKUP_MBR)
+                    f.write(self.BACKUP_MBR[:440])
                     
                 messagebox.showinfo("Success", 
                                   f"MBR recovered successfully.\nBackup created at: {backup_path}")
