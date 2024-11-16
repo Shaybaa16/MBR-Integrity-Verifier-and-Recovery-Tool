@@ -19,7 +19,7 @@ class MBRVerifier(tk.Tk):
     
     def setup_gui(self):
         self.title("MBR Integrity Verifier and Recovery Tool")
-        self.geometry("600x400")
+        self.geometry("800x600")
         
         # Create main frame
         main_frame = ttk.Frame(self, padding="10")
@@ -55,7 +55,12 @@ class MBRVerifier(tk.Tk):
         # Results display
         self.result_text = tk.Text(main_frame, height=10, width=60)
         self.result_text.grid(row=5, column=0, columnspan=3, pady=10)
-
+        
+        # Hex viewer
+        ttk.Label(main_frame, text="MBR Hex Viewer:").grid(row=6, column=0, pady=5)
+        self.hex_viewer = tk.Text(main_frame, height=20, width=80)
+        self.hex_viewer.grid(row=7, column=0, columnspan=3, pady=10)
+    
     def get_physical_drives(self):
         drives = []
         for i in range(10):  # Assuming up to 10 drives
@@ -96,6 +101,7 @@ class MBRVerifier(tk.Tk):
                 )
                 mbr_data = win32file.ReadFile(drive_handle, 512)[1]
                 win32file.CloseHandle(drive_handle)
+                self.display_hex(mbr_data)
                 return mbr_data[:440]
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to read live MBR: {str(e)}")
@@ -103,10 +109,23 @@ class MBRVerifier(tk.Tk):
         else:
             try:
                 with open(self.image_path.get(), 'rb') as f:
-                    return f.read(440)
+                    mbr_data = f.read(512)
+                    self.display_hex(mbr_data)
+                    return mbr_data[:440]
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to read image MBR: {str(e)}")
                 return None
+
+    def display_hex(self, data):
+        hex_str = ""
+        # Add header row
+        hex_str += "Address  " + " ".join(f"{i:02X}" for i in range(16)) + "\n"
+        # Add data rows
+        for i in range(0, len(data), 16):
+            row_data = data[i:i+16]
+            hex_str += f"{i:08X}  " + " ".join(f"{byte:02X}" for byte in row_data) + "\n"
+        self.hex_viewer.delete(1.0, tk.END)
+        self.hex_viewer.insert(tk.END, hex_str)
 
     def calculate_hash(self, data):
         return hashlib.sha256(data).hexdigest()
@@ -159,24 +178,24 @@ class MBRVerifier(tk.Tk):
                 if not image_path:
                     messagebox.showerror("Error", "Please select an image file")
                     return
-                    
+                
                 if not os.path.exists(image_path):
                     messagebox.showerror("Error", "Image file not found")
                     return
-                    
+                
                 # Create backup
                 backup_path = image_path + ".backup"
                 if not os.path.exists(backup_path):
                     import shutil
                     shutil.copy2(image_path, backup_path)
-                    
+                
                 # Write MBR to image
                 with open(image_path, 'r+b') as f:
                     f.seek(0)
                     f.write(self.BACKUP_MBR[:440])
-                    
+                
                 messagebox.showinfo("Success", 
-                                  f"MBR recovered successfully.\nBackup created at: {backup_path}")
+                                    f"MBR recovered successfully.\nBackup created at: {backup_path}")
                 self.verify_mbr()
                 
             except PermissionError:
