@@ -102,6 +102,12 @@ class MBRVerifier(tk.Tk):
     def recover_mbr(self):
         if self.source_var.get() == "live":
             try:
+                # Check admin rights
+                import ctypes
+                if not ctypes.windll.shell32.IsUserAnAdmin():
+                    messagebox.showerror("Error", "Administrator privileges required")
+                    return
+                    
                 drive_handle = win32file.CreateFile(
                     "\\\\.\\PhysicalDrive1",
                     win32con.GENERIC_WRITE,
@@ -111,14 +117,49 @@ class MBRVerifier(tk.Tk):
                     0,
                     None
                 )
-                win32file.WriteFile(drive_handle, self.BACKUP_MBR)
+                
+                # Write MBR data
+                mbr_data = bytes.fromhex(self.BACKUP_MBR.hex())
+                win32file.WriteFile(drive_handle, mbr_data)
                 win32file.CloseHandle(drive_handle)
+                
                 messagebox.showinfo("Success", "MBR has been recovered successfully")
                 self.verify_mbr()
+                
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to recover MBR: {str(e)}")
         else:
-            messagebox.showwarning("Warning", "Recovery is only available for live system")
+            # Handle image recovery
+            try:
+                image_path = self.image_path.get()
+                if not image_path:
+                    messagebox.showerror("Error", "Please select an image file")
+                    return
+                    
+                if not os.path.exists(image_path):
+                    messagebox.showerror("Error", "Image file not found")
+                    return
+                    
+                # Create backup
+                backup_path = image_path + ".backup"
+                if not os.path.exists(backup_path):
+                    import shutil
+                    shutil.copy2(image_path, backup_path)
+                    
+                # Write MBR to image
+                with open(image_path, 'r+b') as f:
+                    mbr_data = bytes.fromhex(self.BACKUP_MBR.hex())
+                    f.seek(0)
+                    f.write(mbr_data)
+                    
+                messagebox.showinfo("Success", 
+                                  f"MBR recovered successfully.\nBackup created at: {backup_path}")
+                self.verify_mbr()
+                
+            except PermissionError:
+                messagebox.showerror("Error", "Permission denied. Run as administrator.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to recover image MBR: {str(e)}")
 
 if __name__ == "__main__":
     app = MBRVerifier()
