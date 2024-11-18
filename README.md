@@ -1,4 +1,3 @@
-
 # MBR Integrity Verifier and Recovery Tool
 
 A robust tool for verifying and recovering the Master Boot Record (MBR) to ensure system integrity and reliability. This project leverages Python to provide a seamless way to monitor and restore critical system data.
