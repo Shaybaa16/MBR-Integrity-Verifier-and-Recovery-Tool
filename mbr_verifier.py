@@ -51,15 +51,21 @@ class MBRVerifier(tk.Tk):
                   command=self.verify_mbr).grid(row=4, column=0, pady=20)
         ttk.Button(main_frame, text="Recover MBR", 
                   command=self.recover_mbr).grid(row=4, column=1, pady=20)
+        ttk.Button(main_frame, text="Take Partition Table Snapshot", 
+                  command=self.take_snapshot).grid(row=5, column=0, pady=10)
+        ttk.Button(main_frame, text="Recover Partition Table", 
+                  command=self.recover_partition_table).grid(row=5, column=1, pady=10)
+        ttk.Button(main_frame, text="Corrupt PT (Test)", 
+                  command=self.corrupt_partition_table_for_testing).grid(row=5, column=2, pady=10)
         
         # Results display
         self.result_text = tk.Text(main_frame, height=6, width=65)
-        self.result_text.grid(row=5, column=0, columnspan=3, pady=10)
+        self.result_text.grid(row=6, column=0, columnspan=3, pady=10)
         
         # Hex viewer
-        ttk.Label(main_frame, text="MBR Hex Viewer:").grid(row=6, column=0, pady=5)
+        ttk.Label(main_frame, text="MBR Hex Viewer:").grid(row=7, column=0, pady=5)
         self.hex_viewer = tk.Text(main_frame, height=20, width=65)
-        self.hex_viewer.grid(row=7, column=0, columnspan=3, pady=10)
+        self.hex_viewer.grid(row=8, column=0, columnspan=3, pady=10)
     
     def get_physical_drives(self):
         drives = []
@@ -202,6 +208,107 @@ class MBRVerifier(tk.Tk):
                 messagebox.showerror("Error", "Permission denied. Run as administrator.")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to recover image MBR: {str(e)}")
+
+    def take_snapshot(self):
+        if self.source_var.get() == "live":
+            try:
+                drive_handle = win32file.CreateFile(
+                    f"\\\\.\\{self.drive_var.get()}",
+                    win32con.GENERIC_READ,
+                    win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE,
+                    None,
+                    win32con.OPEN_EXISTING,
+                    0,
+                    None
+                )
+                mbr_data = win32file.ReadFile(drive_handle, 512)[1]
+                win32file.CloseHandle(drive_handle)
+                with open(f'{self.drive_var.get()}_partition_table_snapshot.bin', 'wb') as f:
+                    f.write(mbr_data[446:510])  # Partition table is 64 bytes starting at offset 446
+                messagebox.showinfo("Success", "Partition table snapshot taken successfully.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to take snapshot: {str(e)}")
+        else:
+            try:
+                with open(self.image_path.get(), 'rb') as f:
+                    f.seek(446)
+                    partition_table = f.read(64)
+                with open(f'{self.image_path.get()}_partition_table_snapshot.bin', 'wb') as f:
+                    f.write(partition_table)
+                messagebox.showinfo("Success", "Partition table snapshot taken successfully.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to take snapshot: {str(e)}")
+
+    def recover_partition_table(self):
+        try:
+            # Validate we're in image mode
+            if self.source_var.get() != "image":
+                messagebox.showerror("Error", "Please switch to forensic image mode")
+                return
+
+            # Check if image path exists
+            if not self.image_path.get():
+                messagebox.showerror("Error", "No image file selected")
+                return
+
+            # Validate snapshot file exists
+            snapshot_file = f'{self.image_path.get()}_partition_table_snapshot.bin'
+            if not os.path.exists(snapshot_file):
+                messagebox.showerror("Error", "Partition table snapshot not found")
+                return
+
+            # Read partition table from snapshot
+            with open(snapshot_file, 'rb') as f:
+                partition_table = f.read(64)
+
+            # Validate partition table size
+            if len(partition_table) != 64:
+                messagebox.showerror("Error", "Invalid partition table data")
+                return
+
+            # Write partition table back to image
+            with open(self.image_path.get(), 'r+b') as f:
+                f.seek(446)  # Partition table offset
+                f.write(partition_table)
+
+            messagebox.showinfo("Success", "Partition table recovered successfully")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to recover partition table: {str(e)}")
+
+    def corrupt_partition_table_for_testing(self):
+        """Test function to write random data to partition table area of forensic image"""
+        try:
+            # Ensure we're working with an image file, not live disk
+            if self.source_var.get() != "image":
+                messagebox.showerror("Error", "Please select a forensic image first")
+                return
+                
+            image_path = self.image_path.get()
+            if not image_path:
+                messagebox.showerror("Error", "No image file selected")
+                return
+                
+            # Create backup before testing
+            backup_path = image_path + ".testing_backup"
+            import shutil
+            shutil.copy2(image_path, backup_path)
+            
+            # Generate random test data
+            import random
+            random_data = bytes([random.randint(0, 255) for _ in range(64)])
+            
+            # Write random data to partition table area
+            with open(image_path, 'r+b') as f:
+                f.seek(446)  # Partition table offset
+                f.write(random_data)
+                
+            messagebox.showinfo("Success", 
+                "Partition table corrupted for testing.\n" +
+                f"Backup saved at: {backup_path}")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Test corruption failed: {str(e)}")
 
 if __name__ == "__main__":
     app = MBRVerifier()
